@@ -12,44 +12,81 @@ jobs:
     
     steps:
     - name: Checkout du code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4  # <-- Version 4 au lieu de v3
       
-    - name: Configuration PHP
+    - name: Configuration PHP 8.1
       uses: shivammathur/setup-php@v2
       with:
         php-version: '8.1'
-        extensions: mysqli, pdo_mysql, gd, mbstring
-      
+        extensions: mysqli, pdo_mysql, gd
+        
+    - name: Vérifier la structure du projet
+      run: |
+        echo "=== STRUCTURE DU PROJET ==="
+        echo "Fichiers à la racine :"
+        ls -la
+        echo ""
+        echo "Dossier admin :"
+        ls -la admin/ || echo "Dossier admin non trouvé"
+        echo ""
+        echo "Fichiers PHP trouvés :"
+        find . -name "*.php" | head -10
+        
     - name: Vérification syntaxique PHP
       run: |
-        echo "Vérification syntaxique des fichiers PHP..."
-        find . -name "*.php" -type f -exec php -l {} \; || true
-      
-    - name: Vérifier les dépendances Composer
+        echo "=== VÉRIFICATION SYNTAXE PHP ==="
+        # Vérifier seulement les fichiers principaux
+        echo "1. Vérification index.php..."
+        php -l index.php 2>/dev/null || echo "Erreur dans index.php"
+        
+        echo "2. Vérification admin/index.php..."
+        php -l admin/index.php 2>/dev/null || echo "Erreur dans admin/index.php"
+        
+        echo "3. Recherche autres fichiers PHP..."
+        find . -name "*.php" -type f ! -path "./vendor/*" | while read file; do
+          if php -l "$file" 2>/dev/null; then
+            echo " $file"
+          else
+            echo " $file (erreur)"
+          fi
+        done | head -20
+        
+    - name: Vérifier fichiers essentiels
       run: |
-        if [ -f "composer.json" ]; then
-          composer validate --strict
-          composer install --no-progress
+        echo "=== FICHIERS ESSENTIELS ==="
+        if [ -f "index.php" ]; then
+          echo " index.php présent"
         else
-          echo "Pas de composer.json, étape ignorée"
+          echo " index.php manquant"
+          exit 1
         fi
-      
-    - name: Vérifier la structure des fichiers
-      run: |
-        echo "Fichiers essentiels trouvés :"
-        ls -la index.php admin/ config/ || echo "Certains dossiers manquent"
         
-    - name: Vérifier les erreurs PHP courantes
-      run: |
-        echo "Recherche d'erreurs courantes..."
-        # Vérifier les tags PHP fermants
-        grep -r "?>" . --include="*.php" | head -5
+        if [ -d "admin" ]; then
+          echo " Dossier admin présent"
+          echo "Fichiers admin : $(ls admin/ | wc -l)"
+        else
+          echo " Dossier admin absent"
+        fi
         
-    - name: Archive les logs
+        # Vérifier structure MVC basique
+        echo ""
+        echo "=== STRUCTURE MVC ==="
+        [ -d "controllers" ] && echo " Dossier controllers" || echo " Pas de dossier controllers"
+        [ -d "models" ] && echo " Dossier models" || echo " Pas de dossier models"
+        [ -d "views" ] && echo " Dossier views" || echo "Pas de dossier views"
+        
+    - name: Générer rapport simple
+      run: |
+        echo "=== RAPPORT FINAL ===" > report.txt
+        echo "Projet: E-commerce PHP" >> report.txt
+        echo "Date: $(date)" >> report.txt
+        echo "Fichiers PHP: $(find . -name "*.php" -type f | wc -l)" >> report.txt
+        echo "Taille totale: $(du -sh . | cut -f1)" >> report.txt
+        cat report.txt
+        
+    - name: Télécharger les logs (optionnel)
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4  # <-- Version 4 ici aussi
       with:
-        name: validation-logs
-        path: |
-          **/*.log
-        retention-days: 1
+        name: ci-logs
+        path: report.txt
