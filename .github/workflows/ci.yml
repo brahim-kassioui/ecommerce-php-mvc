@@ -86,7 +86,7 @@ jobs:
         
     - name: Télécharger les logs (optionnel)
       if: always()
-      uses: actions/upload-artifact@v4  # <-- Version 4 ici aussi
+      uses: actions/upload-artifact@v4    # <-- Version 4 ici aussi
       with:
         name: ci-logs
         path: report.txt
