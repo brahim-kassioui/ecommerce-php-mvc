@@ -1,0 +1,55 @@
+name: CI - E-commerce PHP
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout du code
+      uses: actions/checkout@v3
+      
+    - name: Configuration PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.1'
+        extensions: mysqli, pdo_mysql, gd, mbstring
+      
+    - name: Vérification syntaxique PHP
+      run: |
+        echo "Vérification syntaxique des fichiers PHP..."
+        find . -name "*.php" -type f -exec php -l {} \; || true
+      
+    - name: Vérifier les dépendances Composer
+      run: |
+        if [ -f "composer.json" ]; then
+          composer validate --strict
+          composer install --no-progress
+        else
+          echo "Pas de composer.json, étape ignorée"
+        fi
+      
+    - name: Vérifier la structure des fichiers
+      run: |
+        echo "Fichiers essentiels trouvés :"
+        ls -la index.php admin/ config/ || echo "Certains dossiers manquent"
+        
+    - name: Vérifier les erreurs PHP courantes
+      run: |
+        echo "Recherche d'erreurs courantes..."
+        # Vérifier les tags PHP fermants
+        grep -r "?>" . --include="*.php" | head -5
+        
+    - name: Archive les logs
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: validation-logs
+        path: |
+          **/*.log
+        retention-days: 1
